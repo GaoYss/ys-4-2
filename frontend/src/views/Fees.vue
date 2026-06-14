@@ -49,6 +49,10 @@
       <DataTable :columns="billColumns" :rows="bills">
         <template #cell-status="{ row }"><StatusBadge :status="row.status" /></template>
         <template #cell-amount="{ row }">¥{{ Number(row.amount).toFixed(2) }}</template>
+        <template #cell-paid_amount="{ row }">¥{{ Number(row.paid_amount || 0).toFixed(2) }}</template>
+        <template #cell-outstanding_amount="{ row }">
+          ¥{{ Number(row.outstanding_amount != null ? row.outstanding_amount : row.amount - (row.paid_amount || 0)).toFixed(2) }}
+        </template>
       </DataTable>
     </section>
   </div>
@@ -77,7 +81,9 @@ const billColumns = [
   { key: "owner_name", label: "业主" },
   { key: "fee_name", label: "费用" },
   { key: "period", label: "账期" },
-  { key: "amount", label: "金额" },
+  { key: "amount", label: "应收" },
+  { key: "paid_amount", label: "已缴" },
+  { key: "outstanding_amount", label: "欠费" },
   { key: "status", label: "状态" }
 ];
 

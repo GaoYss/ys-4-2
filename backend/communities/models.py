@@ -80,13 +80,15 @@ class FeeType(models.Model):
 
 class Bill(models.Model):
     UNPAID = "unpaid"
+    PARTIAL_PAID = "partial_paid"
     PAID = "paid"
     OVERDUE = "overdue"
     CANCELLED = "cancelled"
     STATUS_CHOICES = (
-        (UNPAID, "待缴费"),
-        (PAID, "已缴费"),
-        (OVERDUE, "已逾期"),
+        (UNPAID, "未缴"),
+        (PARTIAL_PAID, "部分缴"),
+        (PAID, "已缴"),
+        (OVERDUE, "逾期"),
         (CANCELLED, "已作废"),
     )
 
@@ -95,6 +97,7 @@ class Bill(models.Model):
     fee_type = models.ForeignKey(FeeType, related_name="bills", on_delete=models.PROTECT)
     period = models.CharField("账期", max_length=20)
     amount = models.DecimalField("应收金额", max_digits=10, decimal_places=2)
+    paid_amount = models.DecimalField("已缴金额", max_digits=10, decimal_places=2, default=Decimal("0.00"))
     status = models.CharField("状态", max_length=20, choices=STATUS_CHOICES, default=UNPAID)
     due_date = models.DateField("截止日期")
     generated_at = models.DateTimeField("生成时间", auto_now_add=True)
@@ -110,8 +113,12 @@ class Bill(models.Model):
         return self.bill_no
 
     @property
+    def outstanding_amount(self):
+        return (self.amount - self.paid_amount).quantize(Decimal("0.01"))
+
+    @property
     def is_overdue(self):
-        return self.status in {self.UNPAID, self.OVERDUE} and self.due_date < timezone.localdate()
+        return self.status in {self.UNPAID, self.PARTIAL_PAID, self.OVERDUE} and self.due_date < timezone.localdate()
 
 
 class Payment(models.Model):
@@ -127,7 +134,7 @@ class Payment(models.Model):
     )
 
     payment_no = models.CharField("支付流水号", max_length=40, unique=True)
-    bill = models.OneToOneField(Bill, related_name="payment", on_delete=models.PROTECT)
+    bill = models.ForeignKey(Bill, related_name="payments", on_delete=models.PROTECT)
     amount = models.DecimalField("实收金额", max_digits=10, decimal_places=2)
     method = models.CharField("支付方式", max_length=20, choices=METHOD_CHOICES, default=WECHAT)
     paid_at = models.DateTimeField("支付时间", default=timezone.now)

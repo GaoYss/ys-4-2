@@ -38,6 +38,7 @@ class BillSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(source="room.phone", read_only=True)
     fee_name = serializers.CharField(source="fee_type.name", read_only=True)
     is_overdue = serializers.BooleanField(read_only=True)
+    outstanding_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Bill
@@ -52,13 +53,15 @@ class BillSerializer(serializers.ModelSerializer):
             "fee_name",
             "period",
             "amount",
+            "paid_amount",
+            "outstanding_amount",
             "status",
             "due_date",
             "generated_at",
             "paid_at",
             "is_overdue",
         ]
-        read_only_fields = ["bill_no", "amount", "generated_at", "paid_at", "is_overdue"]
+        read_only_fields = ["bill_no", "amount", "paid_amount", "outstanding_amount", "generated_at", "paid_at", "is_overdue"]
 
     def get_room_label(self, obj):
         return f"{obj.room.building.name}-{obj.room.room_no}"
@@ -70,6 +73,10 @@ class PaymentSerializer(serializers.ModelSerializer):
     owner_name = serializers.CharField(source="bill.room.owner_name", read_only=True)
     fee_name = serializers.CharField(source="bill.fee_type.name", read_only=True)
     period = serializers.CharField(source="bill.period", read_only=True)
+    bill_amount = serializers.DecimalField(source="bill.amount", max_digits=10, decimal_places=2, read_only=True)
+    bill_paid_amount = serializers.DecimalField(source="bill.paid_amount", max_digits=10, decimal_places=2, read_only=True)
+    bill_outstanding_amount = serializers.SerializerMethodField()
+    bill_status = serializers.CharField(source="bill.status", read_only=True)
 
     class Meta:
         model = Payment
@@ -83,15 +90,30 @@ class PaymentSerializer(serializers.ModelSerializer):
             "fee_name",
             "period",
             "amount",
+            "bill_amount",
+            "bill_paid_amount",
+            "bill_outstanding_amount",
+            "bill_status",
             "method",
             "paid_at",
             "payer",
             "receipt_no",
         ]
-        read_only_fields = ["payment_no", "receipt_no", "paid_at"]
+        read_only_fields = [
+            "payment_no",
+            "receipt_no",
+            "paid_at",
+            "bill_amount",
+            "bill_paid_amount",
+            "bill_outstanding_amount",
+            "bill_status",
+        ]
 
     def get_room_label(self, obj):
         return f"{obj.bill.room.building.name}-{obj.bill.room.room_no}"
+
+    def get_bill_outstanding_amount(self, obj):
+        return obj.bill.outstanding_amount
 
 
 class ReminderSerializer(serializers.ModelSerializer):
@@ -99,8 +121,11 @@ class ReminderSerializer(serializers.ModelSerializer):
     room_label = serializers.SerializerMethodField()
     owner_name = serializers.CharField(source="bill.room.owner_name", read_only=True)
     phone = serializers.CharField(source="bill.room.phone", read_only=True)
-    amount = serializers.DecimalField(source="bill.amount", max_digits=10, decimal_places=2, read_only=True)
+    amount = serializers.SerializerMethodField()
+    bill_amount = serializers.DecimalField(source="bill.amount", max_digits=10, decimal_places=2, read_only=True)
+    bill_paid_amount = serializers.DecimalField(source="bill.paid_amount", max_digits=10, decimal_places=2, read_only=True)
     due_date = serializers.DateField(source="bill.due_date", read_only=True)
+    bill_status = serializers.CharField(source="bill.status", read_only=True)
 
     class Meta:
         model = Reminder
@@ -113,13 +138,19 @@ class ReminderSerializer(serializers.ModelSerializer):
             "owner_name",
             "phone",
             "amount",
+            "bill_amount",
+            "bill_paid_amount",
             "due_date",
             "channel",
             "message",
             "status",
+            "bill_status",
             "sent_at",
         ]
         read_only_fields = ["reminder_no", "sent_at"]
 
     def get_room_label(self, obj):
         return f"{obj.bill.room.building.name}-{obj.bill.room.room_no}"
+
+    def get_amount(self, obj):
+        return obj.bill.outstanding_amount

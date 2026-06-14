@@ -264,6 +264,11 @@ th {
   color: #b42318;
 }
 
+.status-badge.partial_paid {
+  background: #e3efff;
+  color: #17479e;
+}
+
 .toolbar {
   display: flex;
   gap: 10px;
